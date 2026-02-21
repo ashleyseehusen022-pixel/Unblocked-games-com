@@ -89,13 +89,42 @@ const AdminConsole = ({ state, setState }: { state: GameState, setState: React.D
     let newLogs = [...logs, `> ${input}`];
 
     if (cmd === '/help') {
-      newLogs.push('Commands: /admin <code>, /clear, /exit');
+      newLogs.push('Commands:');
+      newLogs.push('  /admin speedforce - Grant admin access');
+      newLogs.push('  /admin rich       - Get 10,000 credits');
+      newLogs.push('  /admin fast       - Toggle Infinite Speed');
+      newLogs.push('  /admin reset      - Reset all progress');
+      newLogs.push('  /setscore <val>   - Set specific score');
+      newLogs.push('  /clear            - Clear terminal');
+      newLogs.push('  /exit             - Close terminal');
     } else if (parts[0] === '/admin') {
       if (parts[1] === 'speedforce') {
         setState(s => ({ ...s, isAdmin: true }));
         newLogs.push('ACCESS GRANTED. Admin privileges enabled.');
+      } else if (parts[1] === 'rich') {
+        setState(s => ({ ...s, score: s.score + 10000 }));
+        newLogs.push('CREDITS ADDED. Balance increased by 10,000.');
+      } else if (parts[1] === 'fast') {
+        setState(s => ({ ...s, isAdmin: true, isInfiniteSpeed: !s.isInfiniteSpeed }));
+        newLogs.push(`INFINITE SPEED ${!state.isInfiniteSpeed ? 'ENABLED' : 'DISABLED'}.`);
+      } else if (parts[1] === 'reset') {
+        setState(s => ({
+          ...s,
+          score: 0,
+          upgrades: { speed: 0, boostPower: 0, boostDuration: 0 },
+          customization: { skinColor: '#e0115f', trailColor: '#ff4400', envPreset: 'city' }
+        }));
+        newLogs.push('SYSTEM RESET. All progress cleared.');
       } else {
         newLogs.push('ACCESS DENIED. Invalid security code.');
+      }
+    } else if (parts[0] === '/setscore') {
+      const val = parseInt(parts[1]);
+      if (!isNaN(val)) {
+        setState(s => ({ ...s, score: val }));
+        newLogs.push(`SCORE SET TO ${val}.`);
+      } else {
+        newLogs.push('ERROR: Invalid number.');
       }
     } else if (cmd === '/clear') {
       newLogs = [];
