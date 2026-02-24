@@ -4,7 +4,10 @@ import { OrbitControls, PerspectiveCamera, Trail, Float, Stars, Sky, Environment
 import * as THREE from 'three';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'motion/react';
-import { Zap, ArrowUp, Shield, RotateCcw, Terminal } from 'lucide-react';
+import { Zap, ArrowUp, Shield, RotateCcw, Terminal, Download } from 'lucide-react';
+
+// @ts-ignore
+import appCode from './App.tsx?raw';
 
 // --- Types ---
 interface GameState {
@@ -452,7 +455,114 @@ const Joystick = ({ onMove }: { onMove: (x: number, y: number) => void }) => {
   );
 };
 
-const Player = ({ state, setState, playerRef, controls }: { state: GameState, setState: React.Dispatch<React.SetStateAction<GameState>>, playerRef: React.RefObject<THREE.Mesh>, controls: React.MutableRefObject<Controls> }) => {
+const LightningBolt = ({ color, position, scale = 1 }: { color: string, position: [number, number, number], scale?: number }) => {
+  const meshRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (meshRef.current) {
+      const time = state.clock.getElapsedTime();
+      meshRef.current.visible = Math.random() > 0.3; // Flickering
+      meshRef.current.scale.setScalar(scale * (0.8 + Math.random() * 0.4));
+      meshRef.current.rotation.z = Math.sin(time * 20) * 0.1;
+    }
+  });
+
+  return (
+    <group ref={meshRef} position={position}>
+      {/* Jagged lightning shape using simple boxes */}
+      <mesh position={[0, 0, 0]} rotation={[0, 0, 0.5]}>
+        <boxGeometry args={[0.05, 0.5, 0.05]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={5} />
+      </mesh>
+      <mesh position={[0.1, -0.3, 0]} rotation={[0, 0, -0.8]}>
+        <boxGeometry args={[0.05, 0.4, 0.05]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={5} />
+      </mesh>
+      <mesh position={[-0.05, -0.6, 0]} rotation={[0, 0, 0.3]}>
+        <boxGeometry args={[0.05, 0.3, 0.05]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={5} />
+      </mesh>
+    </group>
+  );
+};
+
+const FlashModel = ({ color, trailColor, isBoosting }: { color: string, trailColor: string, isBoosting: boolean }) => {
+  return (
+    <group>
+      {/* Torso */}
+      <mesh position={[0, 0.7, 0]} castShadow>
+        <boxGeometry args={[0.5, 0.7, 0.3]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      
+      {/* Head */}
+      <mesh position={[0, 1.2, 0]} castShadow>
+        <sphereGeometry args={[0.2, 16, 16]} />
+        <meshStandardMaterial color={color} />
+        {/* Eyes/Mask detail */}
+        <mesh position={[0, 0.05, 0.15]}>
+          <boxGeometry args={[0.3, 0.1, 0.1]} />
+          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
+        </mesh>
+      </mesh>
+
+      {/* Chest Emblem */}
+      <mesh position={[0, 0.8, 0.16]}>
+        <circleGeometry args={[0.12, 32]} />
+        <meshStandardMaterial color="#ffffff" />
+        <mesh position={[0, 0, 0.01]}>
+          <planeGeometry args={[0.1, 0.1]} />
+          <meshStandardMaterial color="#ffd700" transparent opacity={0.9} />
+        </mesh>
+      </mesh>
+
+      {/* Arms */}
+      <mesh position={[0.35, 0.7, 0]} castShadow>
+        <capsuleGeometry args={[0.08, 0.4, 4, 8]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <mesh position={[-0.35, 0.7, 0]} castShadow>
+        <capsuleGeometry args={[0.08, 0.4, 4, 8]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+
+      {/* Legs */}
+      <mesh position={[0.15, 0.2, 0]} castShadow>
+        <capsuleGeometry args={[0.1, 0.4, 4, 8]} />
+        <meshStandardMaterial color={color} />
+        {/* Boots */}
+        <mesh position={[0, -0.2, 0]}>
+          <boxGeometry args={[0.22, 0.2, 0.3]} />
+          <meshStandardMaterial color="#ffd700" />
+        </mesh>
+      </mesh>
+      <mesh position={[-0.15, 0.2, 0]} castShadow>
+        <capsuleGeometry args={[0.1, 0.4, 4, 8]} />
+        <meshStandardMaterial color={color} />
+        {/* Boots */}
+        <mesh position={[0, -0.2, 0]}>
+          <boxGeometry args={[0.22, 0.2, 0.3]} />
+          <meshStandardMaterial color="#ffd700" />
+        </mesh>
+      </mesh>
+
+      {/* Lightning from back */}
+      <group position={[0, 0.7, -0.2]}>
+        <LightningBolt color={trailColor} position={[0.2, 0.2, 0]} scale={0.8} />
+        <LightningBolt color={trailColor} position={[-0.2, -0.1, 0]} scale={1.2} />
+        <LightningBolt color={trailColor} position={[0.1, -0.3, 0]} scale={0.6} />
+        {isBoosting && (
+          <>
+            <LightningBolt color="#ffffff" position={[0.3, 0.4, 0]} scale={1.5} />
+            <LightningBolt color="#ffffff" position={[-0.3, 0.1, 0]} scale={1.3} />
+          </>
+        )}
+      </group>
+    </group>
+  );
+};
+
+const Player = ({ state, setState, playerRef, controls }: { state: GameState, setState: React.Dispatch<React.SetStateAction<GameState>>, playerRef: React.RefObject<THREE.Group>, controls: React.MutableRefObject<Controls> }) => {
   const [velocity, setVelocity] = useState(new THREE.Vector3());
   const keys = useRef<{ [key: string]: boolean }>({});
 
@@ -536,16 +646,19 @@ const Player = ({ state, setState, playerRef, controls }: { state: GameState, se
         color={new THREE.Color(state.isBoosting ? "#ffffff" : state.customization.trailColor)}
         attenuation={(t) => t * t}
       >
-        <mesh ref={playerRef} position={[0, 0.5, 0]} castShadow name="player">
-          <sphereGeometry args={[0.5, 32, 32]} />
-          <meshStandardMaterial color={state.customization.skinColor} emissive={state.customization.skinColor} emissiveIntensity={0.5} />
-        </mesh>
+        <group ref={playerRef} position={[0, 0.5, 0]} name="player">
+          <FlashModel 
+            color={state.customization.skinColor} 
+            trailColor={state.customization.trailColor}
+            isBoosting={state.isBoosting}
+          />
+        </group>
       </Trail>
     </group>
   );
 };
 
-const FollowCamera = ({ playerRef }: { playerRef: React.RefObject<THREE.Mesh> }) => {
+const FollowCamera = ({ playerRef }: { playerRef: React.RefObject<THREE.Group> }) => {
   const { camera } = useThree();
   const offset = new THREE.Vector3(0, 5, -10);
 
@@ -563,7 +676,7 @@ const FollowCamera = ({ playerRef }: { playerRef: React.RefObject<THREE.Mesh> })
   return null;
 };
 
-const World = ({ state, setState, playerRef }: { state: GameState, setState: React.Dispatch<React.SetStateAction<GameState>>, playerRef: React.RefObject<THREE.Mesh> }) => {
+const World = ({ state, setState, playerRef }: { state: GameState, setState: React.Dispatch<React.SetStateAction<GameState>>, playerRef: React.RefObject<THREE.Group> }) => {
   const [rings, setRings] = useState<{ id: number, position: [number, number, number] }[]>([]);
   const [boosts, setBoosts] = useState<{ id: number, position: [number, number, number] }[]>([]);
   const [enemies, setEnemies] = useState<{ id: number, position: [number, number, number] }[]>([]);
@@ -722,7 +835,7 @@ const World = ({ state, setState, playerRef }: { state: GameState, setState: Rea
 };
 
 export default function App() {
-  const playerRef = useRef<THREE.Mesh>(null);
+  const playerRef = useRef<THREE.Group>(null);
   const [state, setState] = useState<GameState>({
     score: 0,
     timer: 0,
@@ -804,6 +917,26 @@ export default function App() {
       </div>
 
       <div className="absolute top-8 right-8 z-10 flex gap-4">
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => {
+            const blob = new Blob([appCode], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'FlashSpeedster_App.tsx';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }}
+          className="w-12 h-12 bg-black/40 border border-white/10 text-white/70 hover:text-white rounded-2xl backdrop-blur-md flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.05)]"
+          title="Download Source Code"
+        >
+          <Download size={20} />
+        </motion.button>
+
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
