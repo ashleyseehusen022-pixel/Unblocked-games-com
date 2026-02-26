@@ -3,11 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Trail, Float, Stars, Sky, Environment, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import confetti from 'canvas-confetti';
-import { motion, AnimatePresence } from 'motion/react';
-import { Zap, ArrowUp, Shield, RotateCcw, Terminal, Download } from 'lucide-react';
-
-// @ts-ignore
-import appCode from './App.tsx?raw';
+import { Zap, ArrowUp, Shield, RotateCcw, Terminal } from 'lucide-react';
 
 // --- Types ---
 interface GameState {
@@ -30,6 +26,7 @@ interface GameState {
   customization: {
     skinColor: string;
     trailColor: string;
+    characterId: 'flash' | 'reverse-flash' | 'savitar';
     envPreset: 'city' | 'night' | 'sunset' | 'warehouse';
   };
 }
@@ -59,22 +56,17 @@ const Speedometer = ({ speed, isBoosting }: { speed: number, isBoosting: boolean
         </div>
       </div>
       <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-        <motion.div 
+        <div 
           className={`h-full rounded-full ${isBoosting ? 'bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.8)]' : 'bg-white'}`}
-          initial={{ width: 0 }}
-          animate={{ width: `${percent}%` }}
-          transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+          style={{ width: `${percent}%` }}
         />
       </div>
       {isBoosting && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0, 1, 0] }}
-          transition={{ repeat: Infinity, duration: 1 }}
-          className="text-[9px] text-yellow-400 uppercase font-black tracking-widest mt-1 text-center"
+        <div 
+          className="text-[9px] text-yellow-400 uppercase font-black tracking-widest mt-1 text-center animate-pulse"
         >
           Supersonic Active
-        </motion.div>
+        </div>
       )}
     </div>
   );
@@ -115,7 +107,7 @@ const AdminConsole = ({ state, setState }: { state: GameState, setState: React.D
           ...s,
           score: 0,
           upgrades: { speed: 0, boostPower: 0, boostDuration: 0 },
-          customization: { skinColor: '#e0115f', trailColor: '#ff4400', envPreset: 'city' }
+          customization: { skinColor: '#e0115f', trailColor: '#ff4400', characterId: 'flash', envPreset: 'city' }
         }));
         newLogs.push('SYSTEM RESET. All progress cleared.');
       } else {
@@ -142,12 +134,9 @@ const AdminConsole = ({ state, setState }: { state: GameState, setState: React.D
   };
 
   return (
-    <AnimatePresence>
+    <div>
       {state.showAdminConsole && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
+        <div
           className="absolute top-24 left-1/2 -translate-x-1/2 z-[100] w-full max-w-lg bg-black/90 border border-green-500/30 backdrop-blur-xl rounded-xl p-4 font-mono text-xs text-green-400 shadow-[0_0_30px_rgba(34,197,94,0.2)]"
         >
           <div className="flex justify-between items-center mb-2 border-bottom border-green-500/20 pb-2">
@@ -167,9 +156,9 @@ const AdminConsole = ({ state, setState }: { state: GameState, setState: React.D
               placeholder="Enter command..."
             />
           </form>
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </div>
   );
 };
 
@@ -181,11 +170,11 @@ const UpgradeShop = ({ state, setState }: { state: GameState, setState: React.Di
   ];
 
   const skinOptions = [
-    { name: 'Classic Red', color: '#e0115f' },
-    { name: 'Electric Blue', color: '#00ffff' },
-    { name: 'Shadow Black', color: '#1a1a1a' },
-    { name: 'Golden Flash', color: '#ffd700' },
-    { name: 'Emerald Speed', color: '#50c878' },
+    { id: 'flash', name: 'The Flash', color: '#e0115f', trail: '#ffcc00' },
+    { id: 'reverse-flash', name: 'Reverse Flash', color: '#ffd700', trail: '#ffcc00' },
+    { id: 'savitar', name: 'Savitar', color: '#4a4a4a', trail: '#00ffff' },
+    { id: 'flash', name: 'Electric Blue', color: '#00ffff', trail: '#00ffff' },
+    { id: 'flash', name: 'Shadow Black', color: '#1a1a1a', trail: '#ffffff' },
   ];
 
   const trailOptions = [
@@ -220,12 +209,9 @@ const UpgradeShop = ({ state, setState }: { state: GameState, setState: React.Di
   };
 
   return (
-    <AnimatePresence>
+    <div>
       {state.isShopOpen && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        <div
           className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-xl"
         >
           <div className="w-full max-w-md bg-zinc-900 border border-white/10 rounded-3xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -308,7 +294,15 @@ const UpgradeShop = ({ state, setState }: { state: GameState, setState: React.Di
                     {skinOptions.map(skin => (
                       <button
                         key={skin.name}
-                        onClick={() => setState(s => ({ ...s, customization: { ...s.customization, skinColor: skin.color } }))}
+                        onClick={() => setState(s => ({ 
+                          ...s, 
+                          customization: { 
+                            ...s.customization, 
+                            skinColor: skin.color,
+                            characterId: (skin as any).id || 'flash',
+                            trailColor: (skin as any).trail || s.customization.trailColor
+                          } 
+                        }))}
                         className={`w-10 h-10 rounded-full border-2 transition-all ${state.customization.skinColor === skin.color ? 'border-yellow-400 scale-110' : 'border-transparent'}`}
                         style={{ backgroundColor: skin.color }}
                         title={skin.name}
@@ -378,9 +372,9 @@ const UpgradeShop = ({ state, setState }: { state: GameState, setState: React.Di
               <div className="text-3xl font-black italic text-white">{state.score}</div>
             </div>
           </div>
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </div>
   );
 };
 
@@ -446,108 +440,249 @@ const Joystick = ({ onMove }: { onMove: (x: number, y: number) => void }) => {
       onMouseDown={handleStart}
       onTouchStart={handleStart}
     >
-      <motion.div
+      <div
         className="w-12 h-12 rounded-full bg-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.5)]"
-        animate={{ x: position.x, y: position.y }}
-        transition={{ type: 'spring', damping: 15, stiffness: 200 }}
+        style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
       />
     </div>
   );
 };
 
-const LightningBolt = ({ color, position, scale = 1 }: { color: string, position: [number, number, number], scale?: number }) => {
+const LightningBolt = ({ color, position, scale = 1, rotation = [0, 0, 0] }: { color: string, position: [number, number, number], scale?: number, rotation?: [number, number, number] }) => {
   const meshRef = useRef<THREE.Group>(null);
   
   useFrame((state) => {
     if (meshRef.current) {
       const time = state.clock.getElapsedTime();
-      meshRef.current.visible = Math.random() > 0.3; // Flickering
-      meshRef.current.scale.setScalar(scale * (0.8 + Math.random() * 0.4));
-      meshRef.current.rotation.z = Math.sin(time * 20) * 0.1;
+      meshRef.current.visible = Math.random() > 0.4; // More frequent flickering
+      meshRef.current.scale.setScalar(scale * (0.7 + Math.random() * 0.6));
+      meshRef.current.rotation.y = time * 10; // Spin for more energy
     }
   });
 
   return (
-    <group ref={meshRef} position={position}>
-      {/* Jagged lightning shape using simple boxes */}
+    <group ref={meshRef} position={position} rotation={rotation}>
       <mesh position={[0, 0, 0]} rotation={[0, 0, 0.5]}>
-        <boxGeometry args={[0.05, 0.5, 0.05]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={5} />
+        <boxGeometry args={[0.03, 0.6, 0.03]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={10} />
       </mesh>
-      <mesh position={[0.1, -0.3, 0]} rotation={[0, 0, -0.8]}>
-        <boxGeometry args={[0.05, 0.4, 0.05]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={5} />
-      </mesh>
-      <mesh position={[-0.05, -0.6, 0]} rotation={[0, 0, 0.3]}>
-        <boxGeometry args={[0.05, 0.3, 0.05]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={5} />
+      <mesh position={[0.1, -0.2, 0]} rotation={[0, 0, -0.8]}>
+        <boxGeometry args={[0.03, 0.5, 0.03]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={10} />
       </mesh>
     </group>
   );
 };
 
-const FlashModel = ({ color, trailColor, isBoosting }: { color: string, trailColor: string, isBoosting: boolean }) => {
+const FlashModel = ({ color, trailColor, isBoosting, speed, turn, characterId }: { color: string, trailColor: string, isBoosting: boolean, speed: number, turn: number, characterId: GameState['customization']['characterId'] }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const leftLegRef = useRef<THREE.Mesh>(null);
+  const rightLegRef = useRef<THREE.Mesh>(null);
+  const leftArmRef = useRef<THREE.Mesh>(null);
+  const rightArmRef = useRef<THREE.Mesh>(null);
+  const torsoRef = useRef<THREE.Mesh>(null);
+
+  const isSavitar = characterId === 'savitar';
+  const isReverse = characterId === 'reverse-flash';
+
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime();
+    const runCycle = t * Math.max(speed * 8, 20); 
+    const normalizedSpeed = Math.min(speed / 25, 1);
+    
+    if (groupRef.current) {
+      groupRef.current.rotation.x = normalizedSpeed * 0.8;
+      groupRef.current.rotation.z = THREE.MathUtils.lerp(groupRef.current.rotation.z, -turn * 0.5, 0.1);
+    }
+
+    if (speed > 0.1) {
+      if (leftLegRef.current) leftLegRef.current.rotation.x = Math.sin(runCycle) * 1.3;
+      if (rightLegRef.current) rightLegRef.current.rotation.x = Math.sin(runCycle + Math.PI) * 1.3;
+      
+      if (leftArmRef.current) {
+        leftArmRef.current.rotation.x = Math.sin(runCycle + Math.PI) * 1.6;
+        leftArmRef.current.rotation.z = 0.1 + Math.sin(runCycle) * 0.15;
+      }
+      if (rightArmRef.current) {
+        rightArmRef.current.rotation.x = Math.sin(runCycle) * 1.6;
+        rightArmRef.current.rotation.z = -0.1 - Math.sin(runCycle) * 0.15;
+      }
+      if (torsoRef.current) {
+        torsoRef.current.position.y = (isSavitar ? 1.0 : 0.8) + Math.sin(runCycle * 2) * 0.06;
+        torsoRef.current.rotation.y = Math.sin(runCycle) * 0.15;
+      }
+    } else {
+      if (leftLegRef.current) leftLegRef.current.rotation.x = 0;
+      if (rightLegRef.current) rightLegRef.current.rotation.x = 0;
+      if (leftArmRef.current) {
+        leftArmRef.current.rotation.x = 0;
+        leftArmRef.current.rotation.z = 0.1;
+      }
+      if (rightArmRef.current) {
+        rightArmRef.current.rotation.x = 0;
+        rightArmRef.current.rotation.z = -0.1;
+      }
+      if (torsoRef.current) {
+        torsoRef.current.position.y = isSavitar ? 1.0 : 0.8;
+        torsoRef.current.rotation.y = 0;
+      }
+    }
+  });
+
+  const eyeColor = isReverse ? "#ff0000" : isSavitar ? "#00ffff" : "#ffffff";
+  const emblemColor = isReverse ? "#ff0000" : "#ffd700";
+
   return (
-    <group>
+    <group ref={groupRef} scale={isSavitar ? 1.4 : 1}>
       {/* Torso */}
-      <mesh position={[0, 0.7, 0]} castShadow>
-        <boxGeometry args={[0.5, 0.7, 0.3]} />
-        <meshStandardMaterial color={color} />
+      <mesh ref={torsoRef} position={[0, isSavitar ? 1.0 : 0.8, 0]} castShadow>
+        <boxGeometry args={[isSavitar ? 0.6 : 0.4, isSavitar ? 1.1 : 0.9, isSavitar ? 0.4 : 0.25]} />
+        <meshStandardMaterial color={color} roughness={isSavitar ? 0.1 : 0.4} metalness={isSavitar ? 0.8 : 0.2} />
+        
+        {/* Savitar Armor Spikes */}
+        {isSavitar && (
+          <>
+            <mesh position={[0.35, 0.4, 0]} rotation={[0, 0, -0.5]}>
+              <coneGeometry args={[0.05, 0.3, 4]} />
+              <meshStandardMaterial color="#888888" metalness={1} />
+            </mesh>
+            <mesh position={[-0.35, 0.4, 0]} rotation={[0, 0, 0.5]}>
+              <coneGeometry args={[0.05, 0.3, 4]} />
+              <meshStandardMaterial color="#888888" metalness={1} />
+            </mesh>
+          </>
+        )}
+
+        {/* Belt detail */}
+        <mesh position={[0, -0.35, 0]}>
+          <boxGeometry args={[0.42, 0.08, 0.27]} />
+          <meshStandardMaterial color={emblemColor} emissive={emblemColor} emissiveIntensity={0.5} />
+        </mesh>
+
+        {/* Glowing lines on suit */}
+        <mesh position={[0.15, 0, 0.13]}>
+          <planeGeometry args={[0.02, 0.8]} />
+          <meshStandardMaterial color={emblemColor} emissive={emblemColor} emissiveIntensity={1.5} />
+        </mesh>
+        <mesh position={[-0.15, 0, 0.13]}>
+          <planeGeometry args={[0.02, 0.8]} />
+          <meshStandardMaterial color={emblemColor} emissive={emblemColor} emissiveIntensity={1.5} />
+        </mesh>
       </mesh>
       
       {/* Head */}
-      <mesh position={[0, 1.2, 0]} castShadow>
-        <sphereGeometry args={[0.2, 16, 16]} />
-        <meshStandardMaterial color={color} />
+      <mesh position={[0, isSavitar ? 1.7 : 1.4, 0]} castShadow>
+        <sphereGeometry args={[isSavitar ? 0.25 : 0.2, 16, 16]} />
+        <meshStandardMaterial color={color} metalness={isSavitar ? 0.8 : 0.2} />
+        
+        {/* Mask Wings */}
+        {!isSavitar && (
+          <>
+            <mesh position={[0.18, 0.05, 0]} rotation={[0, 0, -0.4]}>
+              <coneGeometry args={[0.04, 0.15, 4]} />
+              <meshStandardMaterial color={emblemColor} />
+            </mesh>
+            <mesh position={[-0.18, 0.05, 0]} rotation={[0, 0, 0.4]}>
+              <coneGeometry args={[0.04, 0.15, 4]} />
+              <meshStandardMaterial color={emblemColor} />
+            </mesh>
+          </>
+        )}
+
+        {/* Savitar Head Spikes */}
+        {isSavitar && (
+          <mesh position={[0, 0.2, 0]}>
+            <coneGeometry args={[0.05, 0.4, 4]} />
+            <meshStandardMaterial color="#888888" metalness={1} />
+          </mesh>
+        )}
+
         {/* Eyes/Mask detail */}
-        <mesh position={[0, 0.05, 0.15]}>
-          <boxGeometry args={[0.3, 0.1, 0.1]} />
-          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
+        <mesh position={[0, 0.05, 0.14]}>
+          <boxGeometry args={[0.28, 0.08, 0.08]} />
+          <meshStandardMaterial color={eyeColor} emissive={eyeColor} emissiveIntensity={2} />
         </mesh>
       </mesh>
 
       {/* Chest Emblem */}
-      <mesh position={[0, 0.8, 0.16]}>
-        <circleGeometry args={[0.12, 32]} />
-        <meshStandardMaterial color="#ffffff" />
+      <mesh position={[0, isSavitar ? 1.1 : 0.9, 0.14]}>
+        <circleGeometry args={[isSavitar ? 0.18 : 0.12, 32]} />
+        <meshStandardMaterial color={isReverse ? "#000000" : "#ffffff"} />
         <mesh position={[0, 0, 0.01]}>
           <planeGeometry args={[0.1, 0.1]} />
-          <meshStandardMaterial color="#ffd700" transparent opacity={0.9} />
+          <meshStandardMaterial color={emblemColor} emissive={emblemColor} emissiveIntensity={1.5} />
         </mesh>
       </mesh>
 
       {/* Arms */}
-      <mesh position={[0.35, 0.7, 0]} castShadow>
-        <capsuleGeometry args={[0.08, 0.4, 4, 8]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      <mesh position={[-0.35, 0.7, 0]} castShadow>
-        <capsuleGeometry args={[0.08, 0.4, 4, 8]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
+      <group position={[isSavitar ? 0.45 : 0.3, isSavitar ? 1.4 : 1.1, 0]}>
+        <mesh ref={leftArmRef} position={[0, -0.25, 0]} castShadow>
+          <capsuleGeometry args={[isSavitar ? 0.12 : 0.07, isSavitar ? 0.7 : 0.5, 4, 8]} />
+          <meshStandardMaterial color={color} metalness={isSavitar ? 0.8 : 0.2} />
+          {isSavitar && (
+            <mesh position={[0.1, 0, 0]} rotation={[0, 0, -0.5]}>
+              <coneGeometry args={[0.04, 0.2, 4]} />
+              <meshStandardMaterial color="#888888" metalness={1} />
+            </mesh>
+          )}
+        </mesh>
+      </group>
+      <group position={[isSavitar ? -0.45 : -0.3, isSavitar ? 1.4 : 1.1, 0]}>
+        <mesh ref={rightArmRef} position={[0, -0.25, 0]} castShadow>
+          <capsuleGeometry args={[isSavitar ? 0.12 : 0.07, isSavitar ? 0.7 : 0.5, 4, 8]} />
+          <meshStandardMaterial color={color} metalness={isSavitar ? 0.8 : 0.2} />
+          {isSavitar && (
+            <mesh position={[-0.1, 0, 0]} rotation={[0, 0, 0.5]}>
+              <coneGeometry args={[0.04, 0.2, 4]} />
+              <meshStandardMaterial color="#888888" metalness={1} />
+            </mesh>
+          )}
+        </mesh>
+      </group>
 
       {/* Legs */}
-      <mesh position={[0.15, 0.2, 0]} castShadow>
-        <capsuleGeometry args={[0.1, 0.4, 4, 8]} />
-        <meshStandardMaterial color={color} />
-        {/* Boots */}
-        <mesh position={[0, -0.2, 0]}>
-          <boxGeometry args={[0.22, 0.2, 0.3]} />
-          <meshStandardMaterial color="#ffd700" />
+      <group position={[isSavitar ? 0.2 : 0.12, isSavitar ? 0.6 : 0.5, 0]}>
+        <mesh ref={leftLegRef} position={[0, -0.3, 0]} castShadow>
+          <capsuleGeometry args={[isSavitar ? 0.14 : 0.08, isSavitar ? 0.8 : 0.6, 4, 8]} />
+          <meshStandardMaterial color={color} metalness={isSavitar ? 0.8 : 0.2} />
+          <mesh position={[0, -0.3, 0]}>
+            <boxGeometry args={[isSavitar ? 0.25 : 0.18, 0.2, 0.25]} />
+            <meshStandardMaterial color={emblemColor} />
+          </mesh>
         </mesh>
-      </mesh>
-      <mesh position={[-0.15, 0.2, 0]} castShadow>
-        <capsuleGeometry args={[0.1, 0.4, 4, 8]} />
-        <meshStandardMaterial color={color} />
-        {/* Boots */}
-        <mesh position={[0, -0.2, 0]}>
-          <boxGeometry args={[0.22, 0.2, 0.3]} />
-          <meshStandardMaterial color="#ffd700" />
+      </group>
+      <group position={[isSavitar ? -0.2 : -0.12, isSavitar ? 0.6 : 0.5, 0]}>
+        <mesh ref={rightLegRef} position={[0, -0.3, 0]} castShadow>
+          <capsuleGeometry args={[isSavitar ? 0.14 : 0.08, isSavitar ? 0.8 : 0.6, 4, 8]} />
+          <meshStandardMaterial color={color} metalness={isSavitar ? 0.8 : 0.2} />
+          <mesh position={[0, -0.3, 0]}>
+            <boxGeometry args={[isSavitar ? 0.25 : 0.18, 0.2, 0.25]} />
+            <meshStandardMaterial color={emblemColor} />
+          </mesh>
         </mesh>
-      </mesh>
+      </group>
+
+      {/* Lightning Sparks around body - CW style */}
+      <group position={[0, 0.8, 0]}>
+        {speed > 5 && (
+          <>
+            <LightningBolt color={trailColor} position={[0.4, 0.2, 0.1]} scale={0.5} />
+            <LightningBolt color={trailColor} position={[-0.4, -0.2, -0.1]} scale={0.4} />
+            <LightningBolt color={trailColor} position={[0.1, 0.5, 0.2]} scale={0.6} />
+            <LightningBolt color={trailColor} position={[-0.2, -0.4, 0.1]} scale={0.5} />
+          </>
+        )}
+        {isBoosting && (
+          <>
+            <LightningBolt color="#ffffff" position={[0.5, 0.5, 0]} scale={1.2} />
+            <LightningBolt color="#ffffff" position={[-0.5, -0.2, 0.2]} scale={1.0} />
+            <LightningBolt color="#ffffff" position={[0, 0.8, -0.1]} scale={0.8} />
+          </>
+        )}
+      </group>
 
       {/* Lightning from back */}
-      <group position={[0, 0.7, -0.2]}>
+      <group position={[0, 0.8, -0.2]}>
         <LightningBolt color={trailColor} position={[0.2, 0.2, 0]} scale={0.8} />
         <LightningBolt color={trailColor} position={[-0.2, -0.1, 0]} scale={1.2} />
         <LightningBolt color={trailColor} position={[0.1, -0.3, 0]} scale={0.6} />
@@ -564,6 +699,7 @@ const FlashModel = ({ color, trailColor, isBoosting }: { color: string, trailCol
 
 const Player = ({ state, setState, playerRef, controls }: { state: GameState, setState: React.Dispatch<React.SetStateAction<GameState>>, playerRef: React.RefObject<THREE.Group>, controls: React.MutableRefObject<Controls> }) => {
   const [velocity, setVelocity] = useState(new THREE.Vector3());
+  const [currentTurn, setCurrentTurn] = useState(0);
   const keys = useRef<{ [key: string]: boolean }>({});
 
   const BASE_SPEED = state.isInfiniteSpeed ? 500 : 25 + (state.upgrades.speed * 5);
@@ -604,6 +740,8 @@ const Player = ({ state, setState, playerRef, controls }: { state: GameState, se
     const jump = kJump || controls.current.jump;
     const slowMo = kSlowMo || controls.current.slowMo;
 
+    setCurrentTurn(turn);
+
     // Rotation
     playerRef.current.rotation.y += turn * TURN_SPEED * effectiveDelta;
 
@@ -640,25 +778,21 @@ const Player = ({ state, setState, playerRef, controls }: { state: GameState, se
 
   return (
     <group>
-      <Trail
-        width={state.isBoosting ? 2 : 0.8}
-        length={10}
-        color={new THREE.Color(state.isBoosting ? "#ffffff" : state.customization.trailColor)}
-        attenuation={(t) => t * t}
-      >
         <group ref={playerRef} position={[0, 0.5, 0]} name="player">
           <FlashModel 
             color={state.customization.skinColor} 
             trailColor={state.customization.trailColor}
             isBoosting={state.isBoosting}
+            speed={state.currentSpeed}
+            turn={currentTurn}
+            characterId={state.customization.characterId}
           />
         </group>
-      </Trail>
     </group>
   );
 };
 
-const FollowCamera = ({ playerRef }: { playerRef: React.RefObject<THREE.Group> }) => {
+const FollowCamera = ({ playerRef, speed }: { playerRef: React.RefObject<THREE.Group>, speed: number }) => {
   const { camera } = useThree();
   const offset = new THREE.Vector3(0, 5, -10);
 
@@ -670,6 +804,11 @@ const FollowCamera = ({ playerRef }: { playerRef: React.RefObject<THREE.Group> }
       
       camera.position.lerp(targetPos, 0.1);
       camera.lookAt(playerPos);
+
+      // Dynamic FOV based on speed
+      const targetFov = 75 + Math.min(speed * 2, 45);
+      (camera as THREE.PerspectiveCamera).fov = THREE.MathUtils.lerp((camera as THREE.PerspectiveCamera).fov, targetFov, 0.05);
+      (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
     }
   });
 
@@ -856,7 +995,8 @@ export default function App() {
     customization: {
       skinColor: '#e0115f',
       trailColor: '#ff4400',
-      envPreset: 'city',
+      characterId: 'flash',
+      envPreset: 'night',
     },
   });
 
@@ -899,63 +1039,36 @@ export default function App() {
     <div className="relative w-full h-full font-sans text-white overflow-hidden bg-black select-none">
       {/* UI Overlay */}
       <div className="absolute top-8 left-8 z-10 pointer-events-none">
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="text-4xl font-black italic tracking-tighter uppercase text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]"
-        >
-          Score: {state.score}
-        </motion.div>
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-          className="text-xl font-mono text-white/70"
-        >
-          Time: {state.timer.toFixed(1)}s
-        </motion.div>
+        <div> 
+          <div
+            className="text-4xl font-black italic tracking-tighter uppercase text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]"
+          >
+            Score: {state.score}
+          </div>
+          <div 
+            className="text-xl font-mono text-white/70"
+          >
+            Time: {state.timer.toFixed(1)}s
+          </div>
+        </div>
       </div>
 
       <div className="absolute top-8 right-8 z-10 flex gap-4">
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => {
-            const blob = new Blob([appCode], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'FlashSpeedster_App.tsx';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          }}
-          className="w-12 h-12 bg-black/40 border border-white/10 text-white/70 hover:text-white rounded-2xl backdrop-blur-md flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.05)]"
-          title="Download Source Code"
-        >
-          <Download size={20} />
-        </motion.button>
-
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+        <button
           onClick={() => setState(s => ({ ...s, showAdminConsole: !s.showAdminConsole }))}
           className="w-12 h-12 bg-black/40 border border-green-500/30 text-green-500 rounded-2xl backdrop-blur-md flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.2)]"
           title="Admin Console"
         >
           <Terminal size={20} />
-        </motion.button>
+        </button>
 
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+        <button
           onClick={() => setState(s => ({ ...s, isShopOpen: true }))}
           className="px-6 py-3 bg-yellow-400 text-black font-black italic uppercase tracking-tighter rounded-2xl shadow-[0_0_20px_rgba(250,204,21,0.3)] flex items-center gap-2"
         >
           <Zap size={18} />
           Upgrades
-        </motion.button>
+        </button>
       </div>
 
       {state.isBoosting && (
@@ -992,26 +1105,24 @@ export default function App() {
 
           {/* Right Side: Action Buttons */}
           <div className="absolute bottom-12 right-12 flex flex-col gap-6 pointer-events-auto">
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              className="w-20 h-20 rounded-full bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center text-yellow-400"
-              onTouchStart={() => controls.current.jump = true}
-              onTouchEnd={() => controls.current.jump = false}
-              onMouseDown={() => controls.current.jump = true}
-              onMouseUp={() => controls.current.jump = false}
-            >
-              <ArrowUp size={32} />
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              className={`w-20 h-20 rounded-full border backdrop-blur-md flex items-center justify-center transition-colors ${state.isSlowMo ? 'bg-blue-500/40 border-blue-400 text-white' : 'bg-white/10 border-white/20 text-blue-400'}`}
-              onTouchStart={() => controls.current.slowMo = true}
-              onTouchEnd={() => controls.current.slowMo = false}
-              onMouseDown={() => controls.current.slowMo = true}
-              onMouseUp={() => controls.current.slowMo = false}
-            >
-              <Zap size={32} />
-            </motion.button>
+          <button
+            className="w-20 h-20 rounded-full bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center text-yellow-400"
+            onTouchStart={() => controls.current.jump = true}
+            onTouchEnd={() => controls.current.jump = false}
+            onMouseDown={() => controls.current.jump = true}
+            onMouseUp={() => controls.current.jump = false}
+          >
+            <ArrowUp size={32} />
+          </button>
+          <button
+            className={`w-20 h-20 rounded-full border backdrop-blur-md flex items-center justify-center transition-colors ${state.isSlowMo ? 'bg-blue-500/40 border-blue-400 text-white' : 'bg-white/10 border-white/20 text-blue-400'}`}
+            onTouchStart={() => controls.current.slowMo = true}
+            onTouchEnd={() => controls.current.slowMo = false}
+            onMouseDown={() => controls.current.slowMo = true}
+            onMouseUp={() => controls.current.slowMo = false}
+          >
+            <Zap size={32} />
+          </button>
           </div>
         </div>
       )}
@@ -1027,14 +1138,19 @@ export default function App() {
           <Sky sunPosition={[100, 20, 100]} />
         )}
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-        <ambientLight intensity={state.customization.envPreset === 'night' ? 0.2 : 0.5} />
-        <pointLight position={[10, 10, 10]} castShadow intensity={state.customization.envPreset === 'night' ? 0.5 : 1} />
+        <ambientLight intensity={state.customization.envPreset === 'night' ? 0.3 : 0.6} />
+        <pointLight position={[10, 10, 10]} castShadow intensity={state.customization.envPreset === 'night' ? 0.8 : 1.5} />
+        <directionalLight 
+          position={[-10, 10, 5]} 
+          intensity={state.customization.envPreset === 'night' ? 0.4 : 1} 
+          castShadow 
+          shadow-mapSize={[1024, 1024]}
+        />
+        <hemisphereLight intensity={0.5} groundColor="#000000" />
         
         <Player state={state} setState={setState} playerRef={playerRef} controls={controls} />
         <World state={state} setState={setState} playerRef={playerRef} />
-        <FollowCamera playerRef={playerRef} />
-        
-        <Environment preset={state.customization.envPreset} />
+        <FollowCamera playerRef={playerRef} speed={state.currentSpeed} />
       </Canvas>
     </div>
   );
